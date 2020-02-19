@@ -1,0 +1,37 @@
+# This is a .gitignore file for C projects
+# -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+*
+!*/
+# -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+# We use a BLACK-LIST for folders
+[Bb]in/
+[Oo]bj/
+[Cc]overage/
+[Cc]ov_*/
+[Bb]uild*/
+[Tt]ools/
+[Dd]ebug/
+
+# -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+# We use a WHITE-LIST for files
+
+# Repository files
+!.git*
+!.gdbinit
+!*.md
+
+# Building files
+!Makefile
+!configure
+!*.mk
+!*.sh
+!*.yml
+
+# Source files
+!*.h
+!*.c
+!*.[Ss]
+!*.asm
+
+# Ressouces
+!resx/**/*

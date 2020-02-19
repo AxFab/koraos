@@ -1,0 +1,93 @@
+#!/bin/bash
+#      This file is part of the KoraOS project.
+#  Copyright (C) 2018  <Fabien Bavent>
+#
+#  This program is free software: you can redistribute it and/or modify
+#  it under the terms of the GNU Affero General Public License as
+#  published by the Free Software Foundation, either version 3 of the
+#  License, or (at your option) any later version.
+#
+#  This program is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#  GNU Affero General Public License for more details.
+#
+#  You should have received a copy of the GNU Affero General Public License
+#  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+# -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+#  This build script is generic.
+
+set -e
+
+function HELP {
+    cat << EOF
+Usage: configure [OPTIONS]
+with options:
+    --target=TARGET     Triplet of the destination platform
+    --prefix=PREFIX     Destination of final delivery
+    --sysdir=SYSDIR     Destination of final delivery
+EOF
+}
+
+TOPDIR=$(readlink -f `dirname ${BASH_SOURCE[0]}`)
+GENDIR=`pwd`
+PREFIX='/usr/local'
+SYSDIR='/usr'
+TARGET=`$TOPDIR/make/host.sh`
+if [ "$TOPDIR" == "$GENDIR" ]; then
+    echo "This script doesn't allow to persist build parameters on source folder" >&2
+    echo "Please build on another directory" >&2
+    echo "  or use proper make command (see make/README.md" >&2
+    exit 1
+fi
+
+while (( $# > 0 )); do
+    case $1 in
+        --target=*) TARGET=`$TOPDIR/make/host.sh ${1:9}` ;;
+        --prefix=*) PREFIX=`readlink -f ${1:9}` ;;
+        --sysdir=*) SYSDIR=`readlink -f ${1:9}` ;;
+        *) HELP; exit 1 ;;
+    esac
+    shift
+done
+
+CROSS=''
+CC='gcc'
+LD='ld'
+if [ "$TARGET" != "`$TOPDIR/make/host.sh`" ]; then
+    CROSS="$TARGET-"
+    IFS='-' read -ra THST <<< "$TARGET"
+    T_ARCH=${THST[0]}
+    T_OS=${THST[@]:2:${#THST[@]}}
+    echo "Cross build - Arch: $T_ARCH - Os: $T_OS"
+    # echo 'Try '"$CROSS$CC"
+    i=0
+    while [ -z `which "$CROSS$CC" 2> /dev/null || true` ]; do
+        case $i in
+            0) CROSS="$T_ARCH-$T_OS-"; CC='gcc'; ;;
+            1) CROSS="$SYSDIR/bin/$T_ARCH-$T_OS-"; CC='gcc'; ;;
+            2) CROSS="$SYSDIR/usr/bin/$T_ARCH-$T_OS-"; CC='gcc'; ;;
+            3) CROSS="$PREFIX/bin/$T_ARCH-$T_OS-"; CC='gcc'; ;;
+            4) CROSS="$PREFIX/usr/bin/$T_ARCH-$T_OS-"; CC='gcc'; ;;
+            5)
+                CROSS=''; CC='';
+                echo "Unable to find toolchain for target $TARGET"  >&2
+                exit 1 ;;
+        esac
+        # echo 'Try '"$CROSS$CC"
+        i=`expr $i + 1`
+    done
+fi
+
+cat > Makefile << EOF
+topdir:=$TOPDIR
+gendir:=$GENDIR
+prefix:=$PREFIX
+target:=$TARGET
+hstdir:=$SYSDIR
+CROSS:=$CROSS
+CC:=$CROSS$CC
+LD:=$CROSS$LD
+LDC:=$CROSS$CC
+include $TOPDIR/Makefile
+EOF

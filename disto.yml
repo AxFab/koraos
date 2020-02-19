@@ -1,0 +1,24 @@
+
+architecture: i386
+
+packages:
+  kernel: src
+  file_systems: src
+  drivers_pc: src
+  drivers_misc: src
+  libc: src
+  lgfx: src
+  utils: src
+  krish: src
+
+sources:
+  kernel: https://github.com/axfab/kora-kernel
+  file_systems: https://github.com/axfab/kora-file-systems
+  drivers_pc: https://github.com/axfab/kora-drivers-pc
+  drivers_misc: https://github.com/axfab/kora-drivers-misc
+  libc: https://github.com/axfab/kora-libc
+  lgfx: https://github.com/axfab/kora-lgfx
+  utils: https://github.com/axfab/kora-utils
+  krish: https://github.com/axfab/kora-krish
+
+
