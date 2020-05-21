@@ -5,6 +5,7 @@
 build*/
 sources/
 packages/
+tools/
 
 
 !*.git*

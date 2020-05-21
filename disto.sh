@@ -1,65 +1,18 @@
 #!/bin/bash
-
+# Distribution building script for KoraOS
+# ----------------------------------------------------------------------------
 set -eu
 
 SCRIPT_DIR=`dirname "$BASH_SOURCE{0}"`
 SCRIPT_HOME=`readlink -f "$SCRIPT_DIR"`
 TOPDIR=`pwd`
 
-# -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
-
-CSL_RED='\033[0;31m'
-CSL_YELLOW='\033[0;33m'
-CSL_CYAN='\033[0;36m'
-CSL_OFF='\033[0m'
-
-function echo_info {
-    while (( $# > 0)); do
-        echo "$1"
-        shift
-    done
-}
-
-function echo_important {
-    while (( $# > 0)); do
-        echo -e $CSL_CYAN"$1"$CSL_OFF
-        shift
-    done
-}
-
-function echo_warning {
-    while (( $# > 0)); do
-        echo -e $CSL_YELLOW"$1"$CSL_OFF
-        shift
-    done
-}
-function echo_error {
-    while (( $# > 0)); do
-        echo -e $CSL_RED"$1"$CSL_OFF
-        shift
-    done
-    false
-}
-
-function parse_yaml {
-   local prefix=$2
-   local s='[[:space:]]*' w='[a-zA-Z0-9_]*' fs=$(echo @|tr @ '\034')
-   sed -ne "s|^\($s\):|\1|" \
-        -e "s|^\($s\)\($w\)$s:$s[\"']\(.*\)[\"']$s\$|\1$fs\2$fs\3|p" \
-        -e "s|^\($s\)\($w\)$s:$s\(.*\)$s\$|\1$fs\2$fs\3|p"  $1 |
-   awk -F$fs '{
-      indent = length($1)/2;
-      vname[indent] = $2;
-      for (i in vname) {if (i > indent) {delete vname[i]}}
-      if (length($3) > 0) {
-         vn=""; for (i=0; i<indent; i++) {vn=(vn)(vname[i])("_")}
-         printf("%s%s%s=\"%s\"\n", "'$prefix'",vn, $2, $3);
-      }
-   }'
-}
-
+. "$SCRIPT_HOME/resx/utils.sh"
 
 # -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+function pkg {
+    "$SCRIPT_HOME/pkg.sh" $@
+}
 
 function update_file {
     hash1=`sha1sum "$1" | cut -f 1 -d ' '`
@@ -104,14 +57,17 @@ function update_prj {
 # -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
 function package_clone {
-    local SRCDIR="$TOPDIR/sources/$1"
+    local SRCDIR="$SCRIPT_HOME/sources/$1"
 
     if [ ! -f "$SRCDIR/Makefile" ]; then
         echo_info "Download sources for $1"
         var=` echo "KORA_cfg_sources_$1" | tr '-' '_'`
         GIT_URL="${!var}"
-        mkdir -p "$TOPDIR/sources"
-        cd "$TOPDIR/sources"
+        if [ -z "$GIT_URL" ]; then
+            echo_error "No referenced source for package $1"
+        fi
+        mkdir -p "$SCRIPT_HOME/sources"
+        cd "$SCRIPT_HOME/sources"
         git clone "$GIT_URL" "$1"
         cd "$SRCDIR"
         git checkout develop
@@ -119,14 +75,15 @@ function package_clone {
 }
 
 function package_build {
-    local SRCDIR="$TOPDIR/sources/$1"
+    local SRCDIR="$SCRIPT_HOME/sources/$1"
+    local SYSDIR="$SCRIPT_HOME/build-$TARGET/kora-os"
 
     if [ ! -f "$GENDIR/Makefile" ]; then # <Todo> Or in case we force rebuild
         echo_info "Configure build at $GENDIR"
         rm -rf "$GENDIR"
         mkdir -p "$GENDIR"
         cd "$GENDIR"
-        $SRCDIR/configure --target="$TARGET" --prefix="$PREFIX"
+        $SRCDIR/configure --target="$TARGET" --prefix="$PREFIX" --sysdir="$SYSDIR"
     fi
 
     echo_info "Build the product $1"
@@ -136,9 +93,9 @@ function package_build {
 }
 
 function package_publish {
-    local SRCDIR="$TOPDIR/sources/$1"
-    local GENDIR="$TOPDIR/build-$TARGET/$1"
-    local PREFIX="$TOPDIR/build-$TARGET/$1/usr"
+    local SRCDIR="$SCRIPT_HOME/sources/$1"
+    local GENDIR="$SCRIPT_HOME/build-$TARGET/$1"
+    local PREFIX="$SCRIPT_HOME/build-$TARGET/$1/usr"
     local VERS="$2"
     local PACKNAME=$1-$VERS.tar.xz
 
@@ -158,19 +115,22 @@ function package_install {
 
     echo_info "Package $1 ($VERS)"
 
-    if [ "$VERS" == 'src' ] || [ ! -f "$REPODIR/$PACKNAME" ]; then
+    if [ "$VERS" == 'src' ]; then
         package_publish $1 $VERS
     fi
 
-    local PREFIX="$TOPDIR/build-$TARGET/kora-os"
+    local PREFIX="$SCRIPT_HOME/build-$TARGET/kora-os"
 
-    echo_info "Install $1 $VERS"
-    if [ ! -f "$REPODIR/$PACKNAME" ]; then
-        echo_error "Unable to find package $PACKNAME"
-    fi
     mkdir -p "$PREFIX"
-    cd "$PREFIX"
-    tar xvJf "$REPODIR/$PACKNAME"
+    pkg install "$1:$VERS" --target=$TARGET  --prefix="$PREFIX" --local
+
+    # echo_info "Install $1 $VERS"
+    # if [ ! -f "$REPODIR/$PACKNAME" ]; then
+    #     echo_error "Unable to find package $PACKNAME"
+    # fi
+    # mkdir -p "$PREFIX"
+    # cd "$PREFIX"
+    # tar xvJf "$REPODIR/$PACKNAME"
 }
 
 function header_publish {
@@ -182,11 +142,11 @@ function header_publish {
         echo_error "In order to package kora headers, kernel and libc source must be on the same version [$KORA_cfg_packages_kernel vs. $KORA_cfg_packages_libc]"
     fi
 
-    local GENDIR="$TOPDIR/build-$TARGET/kora-headers"
+    local GENDIR="$SCRIPT_HOME/build-$TARGET/kora-headers"
     local PACKNAME=kora-headers-$VERS.tar.xz
 
-    local KERN_DIR="$TOPDIR/sources/kernel"
-    local LIBC_DIR="$TOPDIR/sources/libc"
+    local KERN_DIR="$SCRIPT_HOME/sources/kernel"
+    local LIBC_DIR="$SCRIPT_HOME/sources/libc"
     local ARCH=`echo $TARGET | cut -d '-' -f 1`
 
     rm -rf "$GENDIR/usr"
@@ -243,7 +203,7 @@ function build_disto {
 }
 
 function build_image {
-    local PREFIX="$TOPDIR/build-$TARGET/kora-os"
+    local PREFIX="$SCRIPT_HOME/build-$TARGET/kora-os"
 
     echo_info "Create boot archive"
     cd "$PREFIX/boot/mods"
@@ -288,15 +248,29 @@ function setup_toolchain {
     tar xvJf "$REPODIR/$PACKNAME"
 }
 
+function install_toolchain {
+    TOOLS="$SCRIPT_HOME/tools/$KORA_cfg_architecture"
+    mkdir -p "$TOOLS"
+    pkg install -u "kora-${KORA_cfg_architecture}-toolchain" --prefix="$TOOLS"
+    export TLSDIR="$TOOLS/bin"
+    echo "export CROSS=$TOOLS/bin/" >> "$SCRIPT_HOME/.env.cfg"
+    setup_toolchain
+}
+
 
 # -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 echo_info "KORA DISTRIBUTION" "  ----"
 
-# Load persisted settins
-if [ -f "$TOPDIR/disto.yml" ]; then
-    echo_info "Use configuration file $TOPDIR/disto.yml"
-    # echo `parse_yaml "$TOPDIR/disto.yml" ''`
-    source <(parse_yaml "$TOPDIR/disto.yml" 'KORA_cfg_')
+# Load persisted settings
+CROSS=''
+if [ -f "$SCRIPT_HOME/.env.cfg" ]; then
+    . "$SCRIPT_HOME/.env.cfg"
+fi
+
+if [ -f "$SCRIPT_HOME/config.yml" ]; then
+    echo_info "Use configuration file $SCRIPT_HOME/config.yml"
+    # echo `parse_yaml "$SCRIPT_HOME/config.yml" ''`
+    source <(parse_yaml "$SCRIPT_HOME/config.yml" 'KORA_cfg_')
 fi
 
 
@@ -329,7 +303,7 @@ echo_info "Initialize building script"
 echo_important "Select target architecture $TARGET"
 
 CHAIN=`echo $TARGET | cut -d '-' -f 1`'-kora'
-GCC=`which "$CHAIN-gcc" 2>/dev/null || echo ''`
+GCC=`which "${CROSS}$CHAIN-gcc" 2>/dev/null || echo ''`
 if [ -n "$GCC" ]; then
     GCC=`readlink -f "$GCC"`
     TLSDIR=`dirname $(dirname "$GCC")`
@@ -338,7 +312,7 @@ else
     echo_warning "Unable to find cross toolchain for $CHAIN"
 fi
 
-REPODIR="$TOPDIR/packages/$TARGET"
+REPODIR="$SCRIPT_HOME/packages/$TARGET"
 echo_info "  ----"
 
 # Run the command
@@ -359,18 +333,22 @@ case "$COMMAND" in
     'setup')
         setup_toolchain
         ;;
+    # 'tools')
+    #     install_toolchain
+    #     ;;
     'help'|'')
         echo "Script to manage packaging of the kora-os distribution"
         echo ""
         echo "USAGE: $0 <command>"
         echo ""
         echo "  The script haven't been tested to be used outside its directory"
-        echo "  All those command behaviours depends on the configuration of ./disto.yml"
+        echo "  All those command behaviours depends on the configuration of ./config.yml"
         echo ""
         echo "    build         Build the complete OS disk image"
         echo "    update        Update common files of all packages"
         echo "    header        Build the package for kora-headers"
-        echo "    setup         Update the toolchain (replace headers)"
+        echo "    setup         Update the toolchain (erase headers)"
+        # echo "    tools         Install the toolchain"
         echo "    clone         Clone all sources repositories"
         ;;
     *)
