@@ -1,7 +1,7 @@
 #!/bin/bash
 # Distribution building script for KoraOS
 # ----------------------------------------------------------------------------
-set -eu
+set -e
 
 SCRIPT_DIR=`dirname "$BASH_SOURCE{0}"`
 SCRIPT_HOME=`readlink -f "$SCRIPT_DIR"`
@@ -11,7 +11,7 @@ TOPDIR=`pwd`
 
 # -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 function pkg {
-    "$SCRIPT_HOME/pkg.sh" $@
+    "$SCRIPT_HOME/resx/pkg.sh" $@
 }
 
 function update_file {
@@ -33,6 +33,7 @@ function update_prj {
     update_file "$SCRIPT_HOME/make/build.mk" "$DIR/make/build.mk"
     update_file "$SCRIPT_HOME/make/check.mk" "$DIR/make/check.mk"
     update_file "$SCRIPT_HOME/make/global.mk" "$DIR/make/global.mk"
+    update_file "$SCRIPT_HOME/make/targets.mk" "$DIR/make/targets.mk"
     update_file "$SCRIPT_HOME/make/host.sh" "$DIR/make/host.sh"
     update_file "$SCRIPT_HOME/make/configure" "$DIR/configure"
     update_file "$SCRIPT_HOME/make/LICENSE.md" "$DIR/LICENSE.md"
@@ -77,16 +78,30 @@ function package_clone {
 function package_build {
     local SRCDIR="$SCRIPT_HOME/sources/$1"
     local SYSDIR="$SCRIPT_HOME/build-$TARGET/kora-os"
+    local PKG_PARAM="--preface=$SCRIPT_HOME/build-${TARGET}/preface.mk"
+
+    shift
+    while (( $# > 0 )); do
+        case $1 in
+            --core)
+                PKG_PARAM=''
+                ;;
+            *)
+                echo "Ignore option $1"
+                ;;
+        esac
+        shift
+    done
 
     if [ ! -f "$GENDIR/Makefile" ]; then # <Todo> Or in case we force rebuild
         echo_info "Configure build at $GENDIR"
         rm -rf "$GENDIR"
         mkdir -p "$GENDIR"
         cd "$GENDIR"
-        $SRCDIR/configure --target="$TARGET" --prefix="$PREFIX" --sysdir="$SYSDIR"
+        $SRCDIR/configure --target="$TARGET" --prefix="$PREFIX" --sysdir="$SYSDIR" $PKG_PARAM
     fi
 
-    echo_info "Build the product $1"
+    echo_important "Build the product $1"
     cd "$GENDIR"
     # make
     make install
@@ -96,11 +111,12 @@ function package_publish {
     local SRCDIR="$SCRIPT_HOME/sources/$1"
     local GENDIR="$SCRIPT_HOME/build-$TARGET/$1"
     local PREFIX="$SCRIPT_HOME/build-$TARGET/$1/usr"
+    local NAME="$1"
     local VERS="$2"
     local PACKNAME=$1-$VERS.tar.xz
 
-    package_clone $1
-    package_build $1
+    package_clone $NAME $3
+    package_build $NAME $3
 
     echo_info "Create the package $PACKNAME"
     cd "$PREFIX"
@@ -110,19 +126,36 @@ function package_publish {
 
 function package_install {
     var=` echo "KORA_cfg_packages_$1" | tr '-' '_'`
+    local NAME=$1
     local VERS="${!var}"
-    local PACKNAME=$1-$VERS.tar.xz
+    local PACKNAME=$NAME-$VERS.tar.xz
+    local PREFIX="$SCRIPT_HOME/build-$TARGET/kora-os/usr"
 
-    echo_info "Package $1 ($VERS)"
+    local ARG=''
+    shift
+    while (( $# > 0 )); do
+        case $1 in
+            --core)
+                PREFIX="$SCRIPT_HOME/build-$TARGET/kora-os"
+                ARG=--core
+                ;;
+            *)
+                echo "Ignore option $1"
+                ;;
+        esac
+        shift
+    done
 
-    if [ "$VERS" == 'src' ]; then
-        package_publish $1 $VERS
+    echo_info "Package $NAME ($VERS)"
+
+    if [ "$VERS" == 'src' ] && [ "$NAME" != 'kora-headers' ]; then
+        package_publish $NAME $VERS $ARG
     fi
 
-    local PREFIX="$SCRIPT_HOME/build-$TARGET/kora-os"
 
     mkdir -p "$PREFIX"
-    pkg install "$1:$VERS" --target=$TARGET  --prefix="$PREFIX" --local
+    echo_important "Install package $NAME:$VERS"
+    pkg install "$NAME:$VERS" --target=$TARGET  --prefix="$PREFIX" $PKG_ARGS
 
     # echo_info "Install $1 $VERS"
     # if [ ! -f "$REPODIR/$PACKNAME" ]; then
@@ -149,20 +182,21 @@ function header_publish {
     local LIBC_DIR="$SCRIPT_HOME/sources/libc"
     local ARCH=`echo $TARGET | cut -d '-' -f 1`
 
+    echo_important "Build the kora-headers package"
     rm -rf "$GENDIR/usr"
     mkdir -p "$GENDIR/usr"
 
-    cp -vr "$LIBC_DIR/include" "$GENDIR/usr/"
-    # cp -vr "$LIBC_DIR/arch/$ARCH/*" "$TOOL_HEADERS/"
-    cp -vr "$KERN_DIR/include/kernel" "$GENDIR/usr/include/"
-    cp -vr "$KERN_DIR/arch/$ARCH/include/kernel/arch.h" "$GENDIR/usr/include/kernel"
-    cp -vr "$KERN_DIR/arch/$ARCH/include/kernel/cpu.h" "$GENDIR/usr/include/kernel"
-    cp -vr "$KERN_DIR/arch/$ARCH/include/kernel/mmu.h" "$GENDIR/usr/include/kernel"
+    cp -r "$LIBC_DIR/include" "$GENDIR/usr/"
+    # cp -r "$LIBC_DIR/arch/$ARCH/*" "$TOOL_HEADERS/"
+    cp -r "$KERN_DIR/include/kernel" "$GENDIR/usr/include/"
+    cp -r "$KERN_DIR/arch/$ARCH/include/kernel/arch.h" "$GENDIR/usr/include/kernel"
+    # cp -r "$KERN_DIR/arch/$ARCH/include/kernel/cpu.h" "$GENDIR/usr/include/kernel"
+    # cp -r "$KERN_DIR/arch/$ARCH/include/kernel/mmu.h" "$GENDIR/usr/include/kernel"
 
     echo_info "Create the package $PACKNAME"
-    cd "$GENDIR"
+    cd "$GENDIR/usr"
     mkdir -p "$REPODIR"
-    tar cvJf "$REPODIR/$PACKNAME" *
+    tar cJf "$REPODIR/$PACKNAME" *
 }
 
 
@@ -170,19 +204,19 @@ function header_publish {
 # -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
 function for_all_packages {
-    "$1" kernel
+    "$1" kernel --core
 
-    "$1" file-systems --drivers
-    "$1" drivers-pc --drivers
-    "$1" drivers-misc --drivers
+    "$1" file-systems --drivers --core
+    "$1" drivers-pc --drivers --core
+    "$1" drivers-misc --drivers --core
 
-    "$1" libc
+    "$1" libc --core
     "$1" lgfx
     # "$1" gum
 
-    "$1" utils
+    "$1" utils --core
     "$1" krish
-    # "$1" desktop
+    "$1" desktop
 }
 
 function update_disto {
@@ -199,7 +233,42 @@ function clone_disto {
 # Build Kora distribution image
 function build_disto {
     echo_info "Build Kora distribution image" ""
-    for_all_packages package_install
+
+    mkdir -p "$SCRIPT_HOME/build-${TARGET}"
+
+    if [ ! -f "$SCRIPT_HOME/build-${TARGET}/preface.mk" ]; then
+        sed "$SCRIPT_HOME/resx/make.in" \
+            -e "s%@DIRECTORY%${SCRIPT_HOME}%" \
+            -e "s%@TARGET%${TARGET}%" \
+            > "$SCRIPT_HOME/build-${TARGET}/preface.mk"
+    fi
+
+    header_publish
+    package_install kora-headers
+
+    # for_all_packages package_install
+    package_install kernel --core
+    package_install file-systems --drivers --core
+    package_install drivers-pc --drivers --core
+    package_install drivers-misc --drivers --core
+
+    package_install libc --core
+    package_install utils --core
+
+    package_install openlibm
+    package_install zlib
+    package_install libpng
+    package_install freetype
+
+    package_install lgfx
+
+    package_install krish
+    package_install desktop
+
+    # TODO - Set list on config.yml
+    # package_install pixman
+    # package_install cairo
+    # package_install gum
 }
 
 function build_image {
@@ -236,16 +305,19 @@ function setup_toolchain {
     local PACKNAME=kora-headers-$VERS.tar.xz
     if [ "$VERS" == 'src' ]; then
         header_publish
+        package_install libc --core
     fi
 
     if [ -z "$TLSDIR" ]; then
         echo_error "Unable to setup the toolchain"
     fi
 
-    cd "$TLSDIR"
-    rm -rf ./usr/include
-
+    cd "$TLSDIR/usr"
+    rm -rf ./include
     tar xvJf "$REPODIR/$PACKNAME"
+
+    cd "$TLSDIR"
+    pkg install "libc:$VERS" --target=$TARGET  --prefix="$TLSDIR" $PKG_ARGS
 }
 
 function install_toolchain {
@@ -332,6 +404,13 @@ case "$COMMAND" in
         ;;
     'setup')
         setup_toolchain
+        ;;
+    'style')
+        cd "$SCRIPT_HOME/sources"
+        astyle --style=kr --indent=spaces=4 --indent-col1-comments \
+        --min-conditional-indent=1 --pad-oper --pad-header --unpad-paren \
+        --align-pointer=name --align-reference=name --break-one-line-headers \
+        --remove-brackets --convert-tabs --lineend=linux --mode=c \-r "*.c" "*.h"
         ;;
     # 'tools')
     #     install_toolchain

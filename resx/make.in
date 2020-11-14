@@ -1,0 +1,5 @@
+LFLAGS=-L@DIRECTORY/build-@TARGET/kora-os/usr/lib
+LFLAGS+= -L@DIRECTORY/build-@TARGET/kora-os/usr/lib
+LFLAGS+= -Wl,-rpath-link=@DIRECTORY/build-@TARGET/kora-os/usr/lib
+CFLAGS=-Wall -Wextra -ggdb -I@DIRECTORY/build-@TARGET/kora-os/usr/include
+PKC=@DIRECTORY/resx/pkg-config.sh

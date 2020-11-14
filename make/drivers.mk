@@ -20,11 +20,11 @@ define link_driver
 DRVS += $(libdir)/$(1).ko
 INSTALL_DRVS += $(prefix)/boot/mods/$(1).ko
 $(1): $(libdir)/$(1).ko $(libdir)/lk$(1).a
-$(libdir)/$(1).ko: $(call fn_objs,$(1)_SRCS-y)
+$(libdir)/$(1).ko: $(call fn_objs,$(1)_SRCS)
 	$(S) mkdir -p $$(dir $$@)
 	$(Q) echo "    LD  $$@"
 	$(V) $(LD) -shared -o $$@ $$^ $($(1)_LFLAGS)
-$(libdir)/lk$(1).a: $(call fn_objs,$(1)_SRCS-y)
+$(libdir)/lk$(1).a: $(call fn_objs,$(1)_SRCS)
 	$(S) mkdir -p $$(dir $$@)
 	$(Q) echo "    AR  $$@"
 	$(V) $(AR) rc $$@ $$^
@@ -39,7 +39,7 @@ define link_sbin
 BINS += $(bindir)/$(1)
 INSTALL_BINS += $(prefix)/sbin/$(1)
 $(1): $(bindir)/$(1)
-$(bindir)/$(1): $(call fn_objs,$(1)_SRCS-y)
+$(bindir)/$(1): $(call fn_objs,$(1)_SRCS)
 	$(S) mkdir -p $$(dir $$@)
 	$(Q) echo "    LD  $$@"
 	$(V) $(CC) -o $$@ $$^ $($(1)_LFLAGS)

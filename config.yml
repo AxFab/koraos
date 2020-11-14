@@ -3,6 +3,7 @@ architecture: i386
 
 packages:
   kernel: src
+  kora_headers: src
   file_systems: src
   drivers_pc: src
   drivers_misc: src
@@ -10,6 +11,12 @@ packages:
   lgfx: src
   utils: src
   krish: src
+  desktop: src
+  zlib: v1.2.11
+  freetype: v2.10.2
+  openlibm: v0.7.0
+  libpng: v1.6.37
+  pixman: v0.40.0
 
 sources:
   kernel: https://github.com/axfab/kora-kernel
@@ -20,5 +27,6 @@ sources:
   lgfx: https://github.com/axfab/kora-lgfx
   utils: https://github.com/axfab/kora-utils
   krish: https://github.com/axfab/kora-krish
+  desktop: https://github.com/axfab/kora-desktop
 
 

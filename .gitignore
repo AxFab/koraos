@@ -1,16 +1,33 @@
-
+# This is a .gitignore file for C projects
+# -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 *
 !*/
-
+# -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+# We use a BLACK-LIST for folders
+3rd_parties/
 build*/
 sources/
 packages/
 tools/
+.*/
+[Dd]ebug/
 
+# -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+# We use a WHITE-LIST for files
 
+# Repository files
 !*.git*
 !*.md
+
+# Script files
 !*.sh
 !*.yml
 !make/*
+
+# Ressouces
 !resx/*
+
+# !vs/**/*.vcxproj
+# !vs/**/*.vcxproj.filters
+# !vs/**/*.sln
+# !vs/**/*.h

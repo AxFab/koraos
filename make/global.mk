@@ -50,24 +50,39 @@ LDC ?= $(CC)
 LDCX ?= $(CXX)
 NM ?= nm
 INSTALL ?= install
+PKC ?= pkg-config
 
 ASM_EXT := s
 
 DATE := $(shell date '+%Y-%m-%d')
 GIT_H := $(shell git --git-dir=$(topdir)/.git rev-parse --short HEAD 2> /dev/null)$(shell if [ -n "$(git --git-dir=$(topdir)/.git status -suno)"]; then echo '+'; fi)
 GIT_V := $(shell git --git-dir=$(topdir)/.git describe 2> /dev/null)
+VERSION ?= $(GIT_V:v=)
 
 # A V O I D   D E P E N D E N C Y -=-=-=-=-=-=-=-=-=-=-=-
 ifeq ($(shell [ -d $(outdir) ] || echo N ),N)
-NODEPS = 1
+NODEPS ?= 1
 endif
 ifeq ($(MAKECMDGOALS),help)
-NODEPS = 1
+NODEPS ?= 1
 endif
 ifeq ($(MAKECMDGOALS),clean)
-NODEPS = 1
+NODEPS ?= 1
 endif
 ifeq ($(MAKECMDGOALS),distclean)
-NODEPS = 1
+NODEPS ?= 1
 endif
 
+
+define fn_objs
+	$(patsubst $(topdir)/%.c,$(outdir)/%.o,$(patsubst $(topdir)/%.$(ASM_EXT),$(outdir)/%.o,$($(1))))
+endef
+define fn_deps
+	$(patsubst $(topdir)/%.c,$(outdir)/%.d,$(patsubst $(topdir)/%.$(ASM_EXT),,$($(1))))
+endef
+define fn_inst
+	$(patsubst $(gendir)/%,$(prefix)/%,$(1))
+endef
+define fn_flcp
+	$(patsubst $(topdir)/%,$(prefix)/%,$(1))
+endef
