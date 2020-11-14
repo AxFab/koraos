@@ -26,6 +26,7 @@ tools/
 
 # Ressouces
 !resx/*
+!*.patch
 
 # !vs/**/*.vcxproj
 # !vs/**/*.vcxproj.filters

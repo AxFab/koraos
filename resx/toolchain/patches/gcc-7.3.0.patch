@@ -1,0 +1,142 @@
+diff -u a/config.sub b/config.sub
+--- a/config.sub
++++ b/config.sub
+@@ -1409,7 +1409,7 @@ case $os in
+ 	      | -morphos* | -superux* | -rtmk* | -rtmk-nova* | -windiss* \
+ 	      | -powermax* | -dnix* | -nx6 | -nx7 | -sei* | -dragonfly* \
+ 	      | -skyos* | -haiku* | -rdos* | -toppers* | -drops* | -es* \
+-	      | -onefs* | -tirtos* | -phoenix* | -fuchsia* | -redox*)
++	      | -onefs* | -tirtos* | -phoenix* | -fuchsia* | -redox* | -kora* )
+ 	# Remember, each alternative MUST END IN *, to match a version number.
+ 		;;
+ 	-qnx*)
+diff -u a/fixincludes/mkfixinc.sh b/fixincludes/mkfixinc.sh
+--- a/fixincludes/mkfixinc.sh
++++ b/fixincludes/mkfixinc.sh
+@@ -12,8 +12,10 @@ target=fixinc.sh
+ # Check for special fix rules for particular targets
+ case $machine in
+     i?86-*-cygwin* | \
++    i?86-*-kora* | \
+     i?86-*-mingw32* | \
+     x86_64-*-mingw32* | \
++    x86_64-*-kora* | \
+     powerpc-*-eabisim* | \
+     powerpc-*-eabi*    | \
+     powerpc-*-rtems*   | \
+diff -u a/gcc/config.gcc b/gcc/config.gcc
+--- a/gcc/config.gcc
++++ b/gcc/config.gcc
+@@ -716,6 +716,11 @@ case ${target} in
+ *-*-fuchsia*)
+   native_system_header_dir=/include
+   ;;
++*-*-kora*)
++  gas=yes
++  gnu_ld=yes
++  default_use_cxa_atexit=yes
++  ;;
+ *-*-linux* | frv-*-*linux* | *-*-kfreebsd*-gnu | *-*-gnu* | *-*-kopensolaris*-gnu)
+   extra_options="$extra_options gnu-user.opt"
+   gas=yes
+@@ -1506,6 +1511,12 @@ x86_64-*-openbsd*)
+ 	gas=yes
+ 	gnu_ld=yes
+ 	;;
++i[34567]86-*-kora*)
++	tm_file="${tm_file} i386/unix.h i386/att.h dbxelf.h elfos.h glibc-stdint.h i386/i386elf.h kora.h"
++	;;
++x86_64-*-kora*)
++	tm_file="${tm_file} i386/unix.h i386/att.h dbxelf.h elfos.h glibc-stdint.h i386/i386elf.h i386/x86-64.h kora.h"
++	;;
+ i[34567]86-*-linux* | i[34567]86-*-kfreebsd*-gnu | i[34567]86-*-gnu* | i[34567]86-*-kopensolaris*-gnu)
+ 			# Intel 80386's running GNU/*
+ 			# with ELF format using glibc 2
+diff -u a/gcc/config/kora.h b/gcc/config/kora.h
+new file mode 100644
+--- /dev/null
++++ b/gcc/config/kora.h
+@@ -0,0 +1,49 @@
++/* Base configuration file for all Kora targets.
++
++This file is part of GCC.
++
++GCC is free software; you can redistribute it and/or modify
++it under the terms of the GNU General Public License as published by
++the Free Software Foundation; either version 3, or (at your option)
++any later version.
++
++GCC is distributed in the hope that it will be useful,
++but WITHOUT ANY WARRANTY; without even the implied warranty of
++MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++GNU General Public License for more details.
++
++You should have received a copy of the GNU General Public License
++along with GCC; see the file COPYING3.  If not see
++<http://www.gnu.org/licenses/>.  */
++
++/* Common Kora configuration.  */
++
++#undef STARTFILE_SPEC
++#define STARTFILE_SPEC "%{!shared: %{!pg:crt0.o%s}} crti.o%s %{!shared:crtbegin.o%s}"
++
++#undef ENDFILE_SPEC
++#define ENDFILE_SPEC "%{!shared:crtend.o%s} crtn.o%s"
++
++#undef LINK_SPEC
++#define LINK_SPEC "%{shared:-shared} %{static:-static} %{!shared: %{!static: %{rdynamic:-export-dynamic} %{!dynamic-linker:-dynamic-linker /lib/ld.so}}}"
++
++/* When neither pic nor pie has been specified, use PIE.  */
++#undef  CC1_SPEC
++#define CC1_SPEC "%{!fno-pic:%{!fno-PIC:%{!fpic:%{!fPIC:" \
++                   "%{!fno-pie:%{!fno-PIE:%{!fpie:%{!fPIE: -fPIE}}}}}}}}"
++
++#undef  LIB_SPEC
++#define LIB_SPEC "-lc"
++
++#undef  OBJECT_FORMAT_ELF
++#define OBJECT_FORMAT_ELF
++
++#undef  TARGET_OS_CPP_BUILTINS
++#define TARGET_OS_CPP_BUILTINS()		\
++  do						\
++    {						\
++      builtin_define ("__kora__");		\
++      builtin_assert ("system=kora");		\
++    }						\
++  while (false)
++
+diff -u a/libgcc/config.host b/libgcc/config.host
+--- a/libgcc/config.host
++++ b/libgcc/config.host
+@@ -597,6 +597,14 @@ x86_64-*-dragonfly*)
+ 	tmake_file="${tmake_file} i386/t-dragonfly i386/t-crtstuff"
+ 	md_unwind_header=i386/dragonfly-unwind.h
+ 	;;
++i[34567]86-*-kora*)
++    tmake_file="${tmake_file} i386/t-crtstuff t-crtstuff-pic t-libgcc-pic"
++    extra_parts="$extra_parts crti.o crtbegin.o crtend.o crtn.o"
++    ;;
++x86_64-*-kora*)
++    tmake_file="${tmake_file} i386/t-crtstuff t-crtstuff-pic t-libgcc-pic"
++    extra_parts="$extra_parts crti.o crtbegin.o crtend.o crtn.o"
++    ;;
+ i[34567]86-*-freebsd*)
+ 	tmake_file="${tmake_file} i386/t-freebsd i386/t-crtstuff"
+ 	md_unwind_header=i386/freebsd-unwind.h
+diff -u a/libstdc++-v3/crossconfig.m4 b/libstdc++-v3/crossconfig.m4
+--- a/libstdc++-v3/crossconfig.m4
++++ b/libstdc++-v3/crossconfig.m4
+@@ -182,6 +182,12 @@ case "${host}" in
+ 	;;
+     esac
+     ;;
++  *-kora*)
++    GLIBCXX_CHECK_COMPILER_FEATURES
++    GLIBCXX_CHECK_LINKER_FEATURES
++    GLIBCXX_CHECK_MATH_SUPPORT
++    GLIBCXX_CHECK_STDLIB_SUPPORT
++    ;;
+   *-linux* | *-uclinux* | *-gnu* | *-kfreebsd*-gnu | *-cygwin*)
+     GLIBCXX_CHECK_COMPILER_FEATURES
+     GLIBCXX_CHECK_LINKER_FEATURES

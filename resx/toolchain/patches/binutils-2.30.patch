@@ -1,0 +1,178 @@
+diff -u a/bfd/config.bfd b/bfd/config.bfd
+--- a/bfd/config.bfd
++++ b/bfd/config.bfd
+@@ -269,6 +269,11 @@ case "${targ}" in
+     targ_selvecs=aarch64_elf64_be_cloudabi_vec
+     want64=true
+     ;;
++  aarch64-*-kora*)
++    targ_defvec=aarch64_elf64_le_vec
++    targ_selvecs="aarch64_elf64_be_vec aarch64_elf32_le_vec aarch64_elf32_be_vec arm_elf32_le_vec arm_elf32_be_vec"
++    want64=true
++    ;;
+   aarch64-*-linux*)
+     targ_defvec=aarch64_elf64_le_vec
+     targ_selvecs="aarch64_elf64_be_vec aarch64_elf32_le_vec aarch64_elf32_be_vec arm_elf32_le_vec arm_elf32_be_vec"
+@@ -442,6 +447,10 @@ case "${targ}" in
+     targ_defvec=arm_elf32_le_vec
+     targ_selvecs=arm_elf32_be_vec
+     ;;
++  arm-*-kora*)
++    targ_defvec=arm_elf32_le_vec
++    targ_selvecs=arm_elf32_be_vec
++    ;;
+   arm-*-elf | arm*-*-freebsd* | arm*-*-linux-* | arm*-*-conix* | \
+   arm*-*-uclinux* | arm-*-kfreebsd*-gnu | \
+   arm*-*-eabi* | arm-*-rtems*)
+@@ -653,6 +662,11 @@ case "${targ}" in
+     targ_defvec=i386_elf32_vec
+     targ_selvecs=i386_elf32_vec
+     ;;
++  i[3-7]86-*-kora*)
++    targ_defvec=i386_elf32_vec
++    targ_selvecs="iamcu_elf32_vec i386_aout_linux_vec i386_pei_vec"
++    targ64_selvecs="x86_64_elf64_vec x86_64_elf32_vec x86_64_pei_vec l1om_elf64_vec k1om_elf64_vec"
++    ;;
+   i[3-7]86-*-nto*)
+     targ_defvec=i386_elf32_vec
+     targ_selvecs="iamcu_elf32_vec i386_coff_vec"
+@@ -778,6 +792,11 @@ case "${targ}" in
+     targ_selvecs="i386_elf32_vec iamcu_elf32_vec x86_64_elf32_vec l1om_elf64_vec k1om_elf64_vec"
+     want64=true
+     ;;
++  x86_64-*-kora-*)
++    targ_defvec=x86_64_elf64_vec
++    targ_selvecs="i386_elf32_vec iamcu_elf32_vec x86_64_elf32_vec i386_aout_linux_vec i386_pei_vec x86_64_pei_vec l1om_elf64_vec k1om_elf64_vec"
++    want64=true
++    ;;
+   x86_64-*-dragonfly*)
+     targ_defvec=x86_64_elf64_vec
+     targ_selvecs="i386_elf32_vec iamcu_elf32_vec l1om_elf64_vec k1om_elf64_vec"
+diff -u a/config.sub b/config.sub
+--- a/config.sub
++++ b/config.sub
+@@ -1416,7 +1416,8 @@ case $os in
+ 	      | -morphos* | -superux* | -rtmk* | -rtmk-nova* | -windiss* \
+ 	      | -powermax* | -dnix* | -nx6 | -nx7 | -sei* | -dragonfly* \
+ 	      | -skyos* | -haiku* | -rdos* | -toppers* | -drops* | -es* \
+-	      | -onefs* | -tirtos* | -phoenix* | -fuchsia* | -redox* | -bme*)
++	      | -onefs* | -tirtos* | -phoenix* | -fuchsia* | -redox* | -bme* \
++	      | -kora*)
+ 	# Remember, each alternative MUST END IN *, to match a version number.
+ 		;;
+ 	-qnx*)
+diff -u a/gas/configure.tgt b/gas/configure.tgt
+--- a/gas/configure.tgt
++++ b/gas/configure.tgt
+@@ -126,6 +126,7 @@ generic_target=${cpu_type}-$vendor-$os
+ case ${generic_target} in
+   aarch64*-*-elf*)			fmt=elf;;
+   aarch64*-*-fuchsia*)			fmt=elf;;
++  aarch64*-*-kora*)			fmt=elf  em=gnu ;;
+   aarch64*-*-linux*)			fmt=elf em=linux
+     case ${cpu}-${os} in
+       aarch64*-linux-gnu_ilp32)		arch=aarch64:32 ;;
+@@ -147,6 +148,7 @@ case ${generic_target} in
+   arm-*-eabi* | arm-*-rtems*)		fmt=elf em=armeabi ;;
+   arm-*-symbianelf*)			fmt=elf em=symbian ;;
+   arm-*-kaos*)				fmt=elf ;;
++  arm-*-kora)				fmt=elf em=gnu ;;
+   arm-*-conix*)				fmt=elf ;;
+   arm-*-freebsd[89].* | armeb-*-freebsd[89].*)
+ 					fmt=elf  em=freebsd ;;
+@@ -226,6 +228,7 @@ case ${generic_target} in
+   i386-*-coff)				fmt=coff ;;
+   i386-*-elfiamcu)			fmt=elf arch=iamcu ;;
+   i386-*-elf*)				fmt=elf ;;
++  i386-*-kora*)				fmt=elf em=gnu ;;
+   i386-*-fuchsia*)			fmt=elf ;;
+   i386-*-kaos*)				fmt=elf ;;
+   i386-*-bsd*)				fmt=aout em=386bsd ;;
+diff -u a/ld/configure.tgt b/ld/configure.tgt
+--- a/ld/configure.tgt
++++ b/ld/configure.tgt
+@@ -260,6 +260,12 @@ i[3-7]86-*-bsd)		targ_emul=i386bsd ;;
+ i[3-7]86-*-bsd386)	targ_emul=i386bsd ;;
+ i[3-7]86-*-bsdi*)	targ_emul=i386bsd ;;
+ i[3-7]86-*-aout)	targ_emul=i386aout ;;
++i[3-7]86-*-kora*)	targ_emul=elf_i386
++			targ_extra_emuls=elf_i386
++			targ64_extra_emuls="elf32_x86_64 elf_x86_64" ;;
++x86_64-*-kora*)	targ_emul=elf_x86_64
++			targ_extra_emuls=elf_i386
++			;;
+ i[3-7]86-*-linux*aout*)	targ_emul=i386linux
+ 			targ_extra_emuls="elf_i386 elf_iamcu"
+ 			tdir_elf_iamcu=`echo ${targ_alias} | sed -e 's/aout//'`
+diff -u a/ld/emulparams/elf_i386_kora.sh b/ld/emulparams/elf_i386_kora.sh
+new file mode 100644
+--- /dev/null
++++ b/ld/emulparams/elf_i386_kora.sh
+@@ -0,0 +1,24 @@
++. ${srcdir}/emulparams/plt_unwind.sh
++. ${srcdir}/emulparams/extern_protected_data.sh
++. ${srcdir}/emulparams/dynamic_undefined_weak.sh
++. ${srcdir}/emulparams/call_nop.sh
++. ${srcdir}/emulparams/cet.sh
++SCRIPT_NAME=elf
++OUTPUT_FORMAT="elf32-i386"
++NO_RELA_RELOCS=yes
++TEXT_START_ADDR=0x00800000
++MAXPAGESIZE="CONSTANT (MAXPAGESIZE)"
++COMMONPAGESIZE="CONSTANT (COMMONPAGESIZE)"
++ARCH=i386
++MACHINE=
++TEMPLATE_NAME=elf32
++GENERATE_SHLIB_SCRIPT=yes
++GENERATE_PIE_SCRIPT=yes
++NO_SMALL_DATA=yes
++SEPARATE_GOTPLT="SIZEOF (.got.plt) >= 12 ? 12 : 0"
++IREL_IN_PLT=
++# These sections are placed right after .plt section.
++OTHER_PLT_SECTIONS="
++.plt.got      ${RELOCATING-0} : { *(.plt.got) }
++.plt.sec      ${RELOCATING-0} : { *(.plt.sec) }
++"
+diff -u a/ld/emulparams/elf_x86_64_kora.sh b/ld/emulparams/elf_x86_64_kora.sh
+new file mode 100644
+--- /dev/null
++++ b/ld/emulparams/elf_x86_64_kora.sh
+@@ -0,0 +1,38 @@
++. ${srcdir}/emulparams/plt_unwind.sh
++. ${srcdir}/emulparams/extern_protected_data.sh
++. ${srcdir}/emulparams/dynamic_undefined_weak.sh
++. ${srcdir}/emulparams/reloc_overflow.sh
++. ${srcdir}/emulparams/call_nop.sh
++. ${srcdir}/emulparams/cet.sh
++SCRIPT_NAME=elf
++ELFSIZE=64
++OUTPUT_FORMAT="elf64-x86-64"
++NO_REL_RELOCS=yes
++TEXT_START_ADDR=0x800000
++case ${LD_FLAG} in
++    n|N)  TEXT_START_ADDR=0 ;;
++esac
++MAXPAGESIZE="CONSTANT (MAXPAGESIZE)"
++COMMONPAGESIZE="CONSTANT (COMMONPAGESIZE)"
++ARCH="i386:x86-64"
++MACHINE=
++TEMPLATE_NAME=elf32
++GENERATE_SHLIB_SCRIPT=yes
++GENERATE_PIE_SCRIPT=yes
++NO_SMALL_DATA=yes
++LARGE_SECTIONS=yes
++LARGE_BSS_AFTER_BSS=
++SEPARATE_GOTPLT="SIZEOF (.got.plt) >= 24 ? 24 : 0"
++IREL_IN_PLT=
++# These sections are placed right after .plt section.
++OTHER_PLT_SECTIONS="
++.plt.got      ${RELOCATING-0} : { *(.plt.got) }
++.plt.sec      ${RELOCATING-0} : { *(.plt.sec) }
++"
++
++if [ "x${host}" = "x${target}" ]; then
++  case " $EMULATION_LIBPATH " in
++    *" ${EMULATION_NAME} "*)
++      NATIVE=yes
++  esac
++fi
