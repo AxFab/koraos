@@ -70,7 +70,7 @@ case "$os" in
     Android)
         os=linux-android
         ;;
-    GNU/Linux)
+    GNU/Linux|*Linux*)
         os=linux-gnu
         ;;
     kora)

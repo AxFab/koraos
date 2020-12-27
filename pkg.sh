@@ -27,6 +27,7 @@ function wfetch {
 
 function pack_identify {
     IFS=':' read -ra TPKG <<< "$1"
+    export PNAME=${TPKG[0]}
     export PACK=`echo ${TPKG[0]} | tr '-' '_'`
     export VERS=${TPKG[1]}
     if [ -z "$VERS" ]; then
@@ -50,7 +51,11 @@ function pack_identify {
 function pack_download {
     echo_info "Package uniq key : $K"
     if [ -z "$PACK_NAME" ]; then
-        echo_error "Unable to find package meta-data"
+        PACK_NAME="${PNAME}-${VERS}.tar.xz"
+        if [ ! -f "$REPODIR/$PACK_NAME" ]; then
+            echo_warning "Unable to find package meta-data"
+        fi
+        return 0
     fi
     mkdir -p "$REPODIR"
     cd "$REPODIR"
@@ -58,11 +63,12 @@ function pack_download {
     if [ -f "$PACK_NAME" ]; then
         HASH=`sha256sum "$PACK_NAME" | cut -f 1 -d ' '`
     fi
-    echo_info "Compare hash $HASH / $PACK_SHA2"
+    # echo_info "Compare hash $HASH / $PACK_SHA2"
     if [ "$HASH" != "$PACK_SHA2" ]; then
         wfetch "$PACK_KEY"
     else
-        echo_info "Already up to date"
+        true
+        # echo_info "Already up to date"
     fi
 }
 
@@ -77,7 +83,7 @@ function pack_install {
     if [ ! -f "$NAME" ]; then
         echo_error "Unable to locate the package at $NAME"
     fi
-    tar xvf "$NAME"
+    tar xf "$NAME"
 }
 
 function pack_uninstall {
@@ -90,7 +96,7 @@ function pack_uninstall {
     if [ ! -f "$NAME" ]; then
         echo_error "Unable to locate the package at $NAME"
     fi
-    tar tvf "$NAME" | xargs rm
+    tar tf "$NAME" | xargs rm
 }
 
 
