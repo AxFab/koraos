@@ -15,8 +15,8 @@ source "${SCRIPT_DIR}/../utils.sh"
 VERSION_autoconf='2.64'
 VERSION_automake='1.11.6'
 VERSION_nasm='2.14.02'
-VERSION_binutils='2.30' # 2.33.1
-VERSION_gcc='7.3.0' # 10.1.0
+VERSION_binutils='2.30' # '2.33.1'
+VERSION_gcc='7.3.0' # '10.1.0'
 
 
 SRCDIR=$(readlink -f `pwd`/sources)
@@ -335,8 +335,8 @@ else
 fi
 
 if [ "${AUTOTOOLS_MODE}" = 'y' ]; then
-    if [ ! -f "${PREFIX}/bin/automake" ]; then $BUILD automake; fi
     if [ ! -f "${PREFIX}/bin/autoconf" ]; then $BUILD autoconf; fi
+    if [ ! -f "${PREFIX}/bin/automake" ]; then $BUILD automake; fi
 fi
 
 if [ ! -f "${PREFIX}/bin/nasm" ]; then $BUILD nasm; fi

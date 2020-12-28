@@ -1,0 +1,94 @@
+diff --git a/config.sub b/config.sub
+index a318a4686..ea75d76a5 100755
+--- a/config.sub
++++ b/config.sub
+@@ -1364,7 +1364,7 @@ case $os in
+ 	     | morphos* | superux* | rtmk* | windiss* \
+ 	     | powermax* | dnix* | nx6 | nx7 | sei* | dragonfly* \
+ 	     | skyos* | haiku* | rdos* | toppers* | drops* | es* \
+-	     | onefs* | tirtos* | phoenix* | fuchsia* | redox* | bme* \
++	     | onefs* | tirtos* | phoenix* | fuchsia* | redox* | bme* | kora* \
+ 	     | midnightbsd* | amdhsa* | unleashed* | emscripten* | wasi* \
+ 	     | nsk* | powerunix)
+ 	# Remember, each alternative MUST END IN *, to match a version number.
+diff --git a/fixincludes/mkfixinc.sh b/fixincludes/mkfixinc.sh
+index df90720b7..ab8f51c30 100755
+--- a/fixincludes/mkfixinc.sh
++++ b/fixincludes/mkfixinc.sh
+@@ -12,8 +12,10 @@ target=fixinc.sh
+ # Check for special fix rules for particular targets
+ case $machine in
+     i?86-*-cygwin* | \
++    i?86-*-kora* | \
+     i?86-*-mingw32* | \
+     x86_64-*-mingw32* | \
++    x86_64-*-kora* | \
+     powerpc-*-eabisim* | \
+     powerpc-*-eabi*    | \
+     powerpc-*-rtems*   | \
+diff --git a/gcc/config.gcc b/gcc/config.gcc
+index cf1a87e2e..618b105f5 100644
+--- a/gcc/config.gcc
++++ b/gcc/config.gcc
+@@ -776,6 +776,11 @@ case ${target} in
+ *-*-fuchsia*)
+   native_system_header_dir=/include
+   ;;
++*-*-kora*)
++  gas=yes
++  gnu_ld=yes
++  default_use_cxa_atexit=yes
++  ;;
+ *-*-linux* | frv-*-*linux* | *-*-kfreebsd*-gnu | *-*-gnu* | *-*-kopensolaris*-gnu | *-*-uclinuxfdpiceabi)
+   extra_options="$extra_options gnu-user.opt"
+   gas=yes
+@@ -1913,6 +1918,12 @@ x86_64-*-openbsd*)
+ 	gas=yes
+ 	gnu_ld=yes
+ 	;;
++i[34567]86-*-kora*)
++	tm_file="${tm_file} i386/unix.h i386/att.h dbxelf.h elfos.h glibc-stdint.h i386/i386elf.h kora.h"
++	;;
++x86_64-*-kora*)
++	tm_file="${tm_file} i386/unix.h i386/att.h dbxelf.h elfos.h glibc-stdint.h i386/i386elf.h i386/x86-64.h kora.h"
++	;;
+ i[34567]86-*-linux* | i[34567]86-*-kfreebsd*-gnu | i[34567]86-*-gnu* | i[34567]86-*-kopensolaris*-gnu)
+ 			# Intel 80386's running GNU/*
+ 			# with ELF format using glibc 2
+diff --git a/libgcc/config.host b/libgcc/config.host
+index 1ff415923..c96ad0cb3 100644
+--- a/libgcc/config.host
++++ b/libgcc/config.host
+@@ -719,6 +719,14 @@ x86_64-*-dragonfly*)
+ 	tmake_file="${tmake_file} i386/t-dragonfly i386/t-crtstuff"
+ 	md_unwind_header=i386/dragonfly-unwind.h
+ 	;;
++i[34567]86-*-kora*)
++    tmake_file="${tmake_file} i386/t-crtstuff t-crtstuff-pic t-libgcc-pic"
++    extra_parts="$extra_parts crti.o crtbegin.o crtend.o crtn.o"
++    ;;
++x86_64-*-kora*)
++    tmake_file="${tmake_file} i386/t-crtstuff t-crtstuff-pic t-libgcc-pic"
++    extra_parts="$extra_parts crti.o crtbegin.o crtend.o crtn.o"
++    ;;
+ i[34567]86-*-freebsd*)
+ 	tmake_file="${tmake_file} i386/t-freebsd i386/t-crtstuff"
+ 	md_unwind_header=i386/freebsd-unwind.h
+diff --git a/libstdc++-v3/crossconfig.m4 b/libstdc++-v3/crossconfig.m4
+index fe1828835..eea7170e9 100644
+--- a/libstdc++-v3/crossconfig.m4
++++ b/libstdc++-v3/crossconfig.m4
+@@ -136,6 +136,13 @@ case "${host}" in
+     AC_SUBST(SECTION_FLAGS)
+     ;;
+
++  *-kora*)
++    GLIBCXX_CHECK_COMPILER_FEATURES
++    GLIBCXX_CHECK_LINKER_FEATURES
++    GLIBCXX_CHECK_MATH_SUPPORT
++    GLIBCXX_CHECK_STDLIB_SUPPORT
++    ;;
++
+   *-hpux*)
+     SECTION_FLAGS='-ffunction-sections -fdata-sections'
+     AC_SUBST(SECTION_FLAGS)

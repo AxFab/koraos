@@ -16,54 +16,42 @@ The KoraOs system is composed of several components.
 The repositories have been created to keep small components that take
 care of one ascpect of the system.
 
-Also many component are made to run on other platform and can be run and
+Also many components are made to run on other platform and can be run and
 tested as a unit.
 
 
 ## Hacking and building
 
-The repositories can all be compiled test and used on their own, but to truly
-use the kora system, you will be better to download the `koraos` package.
+To compile any deliveries for KoraOS you need to prepare a cross-compilor
+toolchain.
+
+This can be done easly with the following scripts:
 
 ```
-git clone https://github.com/axfab/koraos
+./disto.sh header
+./resx/toolchain/build-gcc.sh --prefix=/i386-kora
 ```
 
-This one is quitte small but create an environment for development and
-distribution compilation. It rely on a dummy package manager that will be able
-to use already compiled package or update just the source that did changes.
-
-The overall might be quitte derouting at first, but it's the best I found to
-reduce the complexity of the full system.
-
-
-
-## Building the System from scratch
-
-Building the full system is a complex task, it require a custom toolchain,
-we also have several packages to move arround, the boot image to create and
-third party software to compile.
-
-The dumbest way of creating an image is `./disto.sh build`. However by default
-you won't compile anything, just download and regroup pre-compiled packages.
-To recompile alls, the simplest way is:
+However it require some knowledge to debug some issues.
+A simpler way might be to use the docker image which already contains all
+the required tools.
 
 ```
-./disto.sh toolchain
-./disto.sh reset-source
+docker pull axfab/kora-gcc:latest
+docker run -v `pwd`:/app -w /app -it axfab/kora-gcc:latest bash
+```
+
+Once the toolchain is up and ready it can be update using:
+
+```
 ./disto.sh setup
-./disto.sh third_parties
+```
+
+And the Kora image can be build with:
+
+```
 ./disto.sh build
 ```
-
-It sequencialy do 5 things:
-
- - First it download and recompile the toolchain.
- - Then it will rewrite the `config.yml` file and setup all kora-package to be
-build from sources.
- - The third command will ask for re-install the libc and headers on the toolchain, you need the last one from the sources.
- - The fourth will download and re-packages all third parties.
- - Last one, it recompile everything and create an iso image.
 
 
 ## Organisation of the working space
@@ -84,6 +72,5 @@ create deliveries and packages.
 The `3rd_parties/` hold sources for external libraries.
 
 The `resx/` contains utilities scripts.
-
 
 
